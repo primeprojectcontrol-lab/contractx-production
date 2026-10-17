@@ -1,0 +1,86 @@
+# =========================
+# ContractX - Git Ignore
+# =========================
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+# Python virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Python generated files
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / Next.js
+node_modules/
+contractx-ui/node_modules/
+.next/
+contractx-ui/.next/
+out/
+dist/
+build/
+
+# Playwright
+playwright/.auth/
+contractx-ui/playwright/.auth/
+playwright-report/
+contractx-ui/playwright-report/
+test-results/
+contractx-ui/test-results/
+
+# Logs
+*.log
+logs/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Temporary / cache files
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# Local database / artifacts
+*.db
+*.sqlite
+*.sqlite3
+
+# Python packaging
+*.egg-info/
+.eggs/
+
+# Optional local exports / generated reports
+exports/
+reports/generated/
+
+# Legacy / broken / backup source files
+*_BACKUP_*.py
+*_BROKEN*.py
+*.backup_*.py
