@@ -86,6 +86,8 @@ const PUBLIC_ROUTES = new Set([
 
   "/",
 
+  "/landing",
+
   "/login",
 
   "/signup",
