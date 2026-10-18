@@ -162,9 +162,9 @@ const STANDARD_CONTRACTS: StandardContractOption[] = [
     label: "FIDIC Red Book 2017",
     value: {
       standard_body: "FIDIC",
-      contract_family: "Red Book",
+      contract_family: "Red_Book",
       edition: "2017",
-      jurisdiction: "Global",
+      jurisdiction: "GLOBAL",
     },
   },
   {
@@ -172,9 +172,9 @@ const STANDARD_CONTRACTS: StandardContractOption[] = [
     label: "FIDIC Yellow Book 2017",
     value: {
       standard_body: "FIDIC",
-      contract_family: "Yellow Book",
+      contract_family: "Yellow_Book",
       edition: "2017",
-      jurisdiction: "Global",
+      jurisdiction: "GLOBAL",
     },
   },
   {
@@ -182,9 +182,9 @@ const STANDARD_CONTRACTS: StandardContractOption[] = [
     label: "FIDIC Silver Book 2017",
     value: {
       standard_body: "FIDIC",
-      contract_family: "Silver Book",
+      contract_family: "Silver_Book",
       edition: "2017",
-      jurisdiction: "Global",
+      jurisdiction: "GLOBAL",
     },
   },
   {
@@ -192,9 +192,9 @@ const STANDARD_CONTRACTS: StandardContractOption[] = [
     label: "SCL Delay and Disruption Protocol",
     value: {
       standard_body: "SCL",
-      contract_family: "Delay and Disruption Protocol",
-      edition: "2nd Edition",
-      jurisdiction: "Global",
+      contract_family: "Delay_and_Disruption_Protocol",
+      edition: "2nd_Edition",
+      jurisdiction: "GLOBAL",
     },
   },
   {
@@ -202,9 +202,9 @@ const STANDARD_CONTRACTS: StandardContractOption[] = [
     label: "PSSCOC 2020",
     value: {
       standard_body: "PSSCOC",
-      contract_family: "Public Sector Standard Conditions of Contract",
+      contract_family: "Public_Sector_Standard_Conditions",
       edition: "2020",
-      jurisdiction: "Singapore",
+      jurisdiction: "SINGAPORE",
     },
   },
   {
@@ -212,8 +212,9 @@ const STANDARD_CONTRACTS: StandardContractOption[] = [
     label: "REDAS Design & Build",
     value: {
       standard_body: "REDAS",
-      contract_family: "Design and Build Conditions",
-      jurisdiction: "Singapore",
+      contract_family: "Design_and_Build",
+      edition: "3rd_Edition",
+      jurisdiction: "SINGAPORE",
     },
   },
 ];
