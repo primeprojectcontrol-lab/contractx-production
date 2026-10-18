@@ -585,10 +585,62 @@ export default function DashboardPage() {
   const [documentCount, setDocumentCount] = useState<number | null>(null);
 
   useEffect(() => {
-    const saved = window.localStorage.getItem("contractx-theme");
-    const initialTheme: Theme = saved === "light" ? "light" : "dark";
-    setTheme(initialTheme);
-    document.documentElement.dataset.contractxTheme = initialTheme;
+    const syncThemeFromShell = () => {
+      const shell = document.querySelector(".cx-platform");
+
+      if (shell) {
+        const nextTheme: Theme = shell.classList.contains("cx-platform-light")
+          ? "light"
+          : "dark";
+        setTheme(nextTheme);
+        document.documentElement.dataset.contractxTheme = nextTheme;
+        return;
+      }
+
+      const saved = window.localStorage.getItem("contractx-theme");
+      const nextTheme: Theme = saved === "light" ? "light" : "dark";
+      setTheme(nextTheme);
+      document.documentElement.dataset.contractxTheme = nextTheme;
+    };
+
+    const onThemeChange = (event: Event) => {
+      const customEvent = event as CustomEvent<Theme>;
+
+      if (
+        customEvent.detail === "light" ||
+        customEvent.detail === "dark"
+      ) {
+        setTheme(customEvent.detail);
+        document.documentElement.dataset.contractxTheme = customEvent.detail;
+      } else {
+        syncThemeFromShell();
+      }
+    };
+
+    syncThemeFromShell();
+
+    window.addEventListener(
+      "contractx-theme-change",
+      onThemeChange as EventListener
+    );
+
+    const shell = document.querySelector(".cx-platform");
+    const observer = shell
+      ? new MutationObserver(syncThemeFromShell)
+      : null;
+
+    observer?.observe(shell as Element, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+
+    return () => {
+      window.removeEventListener(
+        "contractx-theme-change",
+        onThemeChange as EventListener
+      );
+      observer?.disconnect();
+    };
   }, []);
 
   function updateTheme(next: Theme) {
@@ -1209,7 +1261,7 @@ export default function DashboardPage() {
   return (
 
     <main
-      className={`flex min-h-screen flex-col bg-[var(--cx-bg)] text-[var(--cx-text)] ${
+      className={`cx-dashboard-shell flex min-h-screen flex-col bg-[var(--cx-bg)] text-[var(--cx-text)] ${
         theme === "light" ? "cx-platform-light" : ""
       }`}
     >
@@ -1248,7 +1300,7 @@ export default function DashboardPage() {
 
 
 
-        .cx-platform-light {
+        .cx-dashboard-shell.cx-platform-light {
 
           --cx-bg: #F5F7FA;
 
@@ -1280,7 +1332,7 @@ export default function DashboardPage() {
 
 
 
-        .cx-platform-light [class*="border-white"] {
+        .cx-dashboard-shell.cx-platform-light [class*="border-white"] {
 
           border-color: #D7DEE7 !important;
 

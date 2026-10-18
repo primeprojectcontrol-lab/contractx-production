@@ -393,6 +393,60 @@ export default function ContractXAppShell({
 
   useEffect(() => {
 
+    const handleThemeChange = (event: Event) => {
+
+      const customEvent = event as CustomEvent<ContractXTheme>;
+
+      const nextTheme = customEvent.detail;
+
+
+
+      if (nextTheme === "light" || nextTheme === "dark") {
+
+        setTheme(nextTheme);
+
+      }
+
+    };
+
+
+
+    window.addEventListener(
+
+      "contractx-theme-change",
+
+      handleThemeChange as EventListener
+
+    );
+
+
+
+    return () => {
+
+      window.removeEventListener(
+
+        "contractx-theme-change",
+
+        handleThemeChange as EventListener
+
+      );
+
+    };
+
+  }, []);
+
+
+
+  useEffect(() => {
+
+    document.documentElement.dataset.contractxTheme = theme;
+
+  }, [theme]);
+
+
+
+  useEffect(() => {
+
     if (publicRoute) return;
 
 

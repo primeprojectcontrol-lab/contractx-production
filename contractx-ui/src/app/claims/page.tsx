@@ -11,7 +11,7 @@ import { createClient } from "@/lib/supabase/client";
 // /api/contractx forwards model governance + vault requests to FastAPI.
 // /api/engine3-proxy forwards Engine 3 requests to FastAPI.
 const API = "/api/contractx";
-const ENGINE3_API = "/api/engine3-proxy";
+const ENGINE3_API = "/api/contractx/api/v1/engine3";
 
 type HealthStatus = "checking" | "online" | "offline";
 type ModelStatus = "checking" | "live" | "unavailable";
@@ -683,25 +683,48 @@ export default function ClaimsResolutionPage() {
 
   useEffect(() => {
     let cancelled = false;
+    let timer: number | null = null;
 
     async function checkHealth() {
-      setHealthStatus("checking");
       try {
         const response = await fetch(`${ENGINE3_API}/health`, {
+          method: "GET",
           cache: "no-store",
+          headers: {
+            Accept: "application/json",
+          },
         });
+
+        const data = await response.json().catch(() => null);
+
+        if (cancelled) return;
+
+        const isOnline =
+          response.ok &&
+          String(data?.status || "").toUpperCase() === "ONLINE";
+
+        setHealthStatus(isOnline ? "online" : "offline");
+      } catch (error) {
         if (!cancelled) {
-          setHealthStatus(response.ok ? "online" : "offline");
+          console.error("Engine 3 health check failed:", error);
+          setHealthStatus("offline");
         }
-      } catch {
-        if (!cancelled) setHealthStatus("offline");
+      } finally {
+        if (!cancelled) {
+          timer = window.setTimeout(checkHealth, 15000);
+        }
       }
     }
 
+    setHealthStatus("checking");
     void checkHealth();
 
     return () => {
       cancelled = true;
+
+      if (timer !== null) {
+        window.clearTimeout(timer);
+      }
     };
   }, []);
 
