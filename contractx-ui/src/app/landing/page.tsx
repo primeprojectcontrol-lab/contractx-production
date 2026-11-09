@@ -4868,7 +4868,7 @@ export default function LandingPage() {
               © {new Date().getFullYear()} contractX.co. All rights reserved.
             </span>
 
-            <div className="flex items-center gap-6 text-[10px] font-bold uppercase tracking-[0.15em] text-[#8F99A5]">
+            <div className="mr-20 flex flex-wrap items-center gap-x-6 gap-y-3 text-[10px] font-bold uppercase tracking-[0.15em] text-[#8F99A5] sm:mr-56">
               <a href="/privacy" className="transition-colors hover:text-white">
                 Privacy
               </a>
@@ -5416,20 +5416,12 @@ export default function LandingPage() {
                       </label>
 
                       <select
-                        className="
-                          w-full
-                          rounded-xl
-                          border
-                          border-white/[0.08]
-                          bg-[#0B0E13]
-                          px-4
-                          py-3
-                          text-sm
-                          text-white
-                          outline-none
-                          transition-colors
-                          focus:border-[#D8A84E]/50
-                        "
+                        className={`w-full rounded-xl border px-4 py-3 text-sm outline-none transition-colors focus:border-[#D8A84E]/50 ${
+                          theme === "dark"
+                            ? "border-white/[0.08] bg-[#0B0E13] text-[#F4F1EA]"
+                            : "border-[#17191C]/15 bg-[#FFFDF8] text-[#17191C]"
+                        }`}
+                        style={{ colorScheme: theme }}
                         value={
                           formData.industry_role
                         }
@@ -5446,28 +5438,58 @@ export default function LandingPage() {
                           )
                         }
                       >
-                        <option>
+                        <option
+                          style={{
+                            backgroundColor: theme === "dark" ? "#0B0E13" : "#FFFDF8",
+                            color: theme === "dark" ? "#F4F1EA" : "#17191C",
+                          }}
+                        >
                           Main Contractor
                         </option>
 
-                        <option>
+                        <option
+                          style={{
+                            backgroundColor: theme === "dark" ? "#0B0E13" : "#FFFDF8",
+                            color: theme === "dark" ? "#F4F1EA" : "#17191C",
+                          }}
+                        >
                           Subcontractor
                         </option>
 
-                        <option>
+                        <option
+                          style={{
+                            backgroundColor: theme === "dark" ? "#0B0E13" : "#FFFDF8",
+                            color: theme === "dark" ? "#F4F1EA" : "#17191C",
+                          }}
+                        >
                           Employer /
                           Developer
                         </option>
 
-                        <option>
+                        <option
+                          style={{
+                            backgroundColor: theme === "dark" ? "#0B0E13" : "#FFFDF8",
+                            color: theme === "dark" ? "#F4F1EA" : "#17191C",
+                          }}
+                        >
                           Law Firm
                         </option>
 
-                        <option>
+                        <option
+                          style={{
+                            backgroundColor: theme === "dark" ? "#0B0E13" : "#FFFDF8",
+                            color: theme === "dark" ? "#F4F1EA" : "#17191C",
+                          }}
+                        >
                           Consultancy
                         </option>
 
-                        <option>
+                        <option
+                          style={{
+                            backgroundColor: theme === "dark" ? "#0B0E13" : "#FFFDF8",
+                            color: theme === "dark" ? "#F4F1EA" : "#17191C",
+                          }}
+                        >
                           Other
                         </option>
                       </select>
