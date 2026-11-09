@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useActiveProject } from "@/hooks/useActiveProject";
+import { createClient } from "@/lib/supabase/client";
 import P6ProgrammeViewer from "@/components/delay/P6ProgrammeViewer";
 
 type Theme = "dark" | "light";
@@ -48,11 +49,33 @@ type ViewerData = {
 
 const API = "/api/contractx";
 
+// Use the same browser Supabase client factory as Delay Analytics.
+const supabase = createClient();
+
+async function authenticatedFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {}
+): Promise<Response> {
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
+
+  if (sessionError || !session?.access_token) {
+    throw new Error("Authentication required. Please sign in again.");
+  }
+
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", `Bearer ${session.access_token}`);
+
+  return globalThis.fetch(input, {
+    ...init,
+    headers,
+  });
+}
+
 export default function ProgrammeViewerPage() {
-  // Build-safe replacement for useSearchParams().
-  // Query-string values are read on the client after mount so the existing
-  // Programme Viewer can keep its current rendering and data-loading behavior
-  // without requiring a Suspense boundary during Next.js prerendering.
+  // Read query-string values after mount to avoid Next.js prerender Suspense issues.
   const [requestedScheduleId, setRequestedScheduleId] = useState("");
   const [requestedProjectId, setRequestedProjectId] = useState("");
   const [urlReady, setUrlReady] = useState(false);
@@ -72,32 +95,18 @@ export default function ProgrammeViewerPage() {
   useEffect(() => {
     const syncUrlContext = () => {
       const params = new URLSearchParams(window.location.search);
-
-      setRequestedScheduleId(
-        (params.get("schedule") || "").trim()
-      );
-
-      setRequestedProjectId(
-        (params.get("project") || "").trim()
-      );
-
+      setRequestedScheduleId((params.get("schedule") || "").trim());
+      setRequestedProjectId((params.get("project") || "").trim());
       setUrlReady(true);
     };
 
     syncUrlContext();
-
     window.addEventListener("popstate", syncUrlContext);
-    window.addEventListener(
-      "contractx-project-change",
-      syncUrlContext
-    );
+    window.addEventListener("contractx-project-change", syncUrlContext);
 
     return () => {
       window.removeEventListener("popstate", syncUrlContext);
-      window.removeEventListener(
-        "contractx-project-change",
-        syncUrlContext
-      );
+      window.removeEventListener("contractx-project-change", syncUrlContext);
     };
   }, []);
 
@@ -107,8 +116,8 @@ export default function ProgrammeViewerPage() {
       saved === "light" || saved === "dark"
         ? saved
         : window.matchMedia("(prefers-color-scheme: light)").matches
-        ? "light"
-        : "dark";
+          ? "light"
+          : "dark";
 
     setTheme(initial);
     document.documentElement.dataset.contractxTheme = initial;
@@ -120,6 +129,8 @@ export default function ProgrammeViewerPage() {
     const effectiveProjectId = requestedProjectId || projectId;
 
     if (!tenantId || !effectiveProjectId || !requestedScheduleId) {
+      setData(null);
+      setBaselineData(null);
       setError("Programme viewer requires a project and schedule selection.");
       setBusy(false);
       return;
@@ -131,6 +142,8 @@ export default function ProgrammeViewerPage() {
       let primaryLoaded = false;
       setBusy(true);
       setError("");
+      setData(null);
+      setBaselineData(null);
 
       try {
         const query = new URLSearchParams({
@@ -138,7 +151,7 @@ export default function ProgrammeViewerPage() {
           project_id: effectiveProjectId,
         });
 
-        const response = await fetch(
+        const response = await authenticatedFetch(
           `${API}/api/v1/engine2/programmes/${encodeURIComponent(
             requestedScheduleId
           )}/viewer?${query.toString()}`
@@ -146,66 +159,55 @@ export default function ProgrammeViewerPage() {
 
         if (!response.ok) {
           let message = `Programme viewer failed (${response.status})`;
-
           try {
             const body = await response.json();
-            message = body?.detail || message;
-          } catch {}
-
+            message = typeof body?.detail === "string" ? body.detail : message;
+          } catch {
+            // Preserve HTTP status if the response is not JSON.
+          }
           throw new Error(message);
         }
 
         const payload = (await response.json()) as ViewerData;
-
         if (cancelled) return;
 
-        // Show the primary programme immediately. Do not keep the full-screen
-        // loader open while an optional baseline is fetched.
+        // Show the primary programme immediately; baseline remains optional.
         setData(payload);
         primaryLoaded = true;
         setBusy(false);
-        setBaselineData(null);
 
-        // Baseline is secondary comparison data. Load it in the background so
-        // large schedules do not make the main Programme Viewer appear hung.
         const baselineScheduleId = payload.baseline_schedule_id;
-
         if (baselineScheduleId) {
           void (async () => {
             try {
-              const baselineResponse = await fetch(
+              const baselineResponse = await authenticatedFetch(
                 `${API}/api/v1/engine2/programmes/${encodeURIComponent(
                   baselineScheduleId
                 )}/viewer?${query.toString()}`
               );
 
               if (!cancelled && baselineResponse.ok) {
-                setBaselineData(
-                  (await baselineResponse.json()) as ViewerData
-                );
+                const baselinePayload =
+                  (await baselineResponse.json()) as ViewerData;
+                if (!cancelled) setBaselineData(baselinePayload);
               }
             } catch {
-              // Baseline remains optional; the main programme is already usable.
+              // A missing baseline must not block the main programme.
             }
           })();
         }
       } catch (e) {
         if (!cancelled) {
           setError(
-            e instanceof Error
-              ? e.message
-              : "Unable to load programme viewer."
+            e instanceof Error ? e.message : "Unable to load programme viewer."
           );
         }
       } finally {
-        if (!cancelled && !primaryLoaded) {
-          setBusy(false);
-        }
+        if (!cancelled && !primaryLoaded) setBusy(false);
       }
     };
 
     void load();
-
     return () => {
       cancelled = true;
     };
