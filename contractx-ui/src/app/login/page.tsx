@@ -13,6 +13,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 import LegalFooter from "@/components/LegalFooter";
+import { House } from "lucide-react";
 
 
 
@@ -42,6 +43,8 @@ export default function LoginPage() {
 
   const [loading, setLoading] = useState(false);
 
+  const [googleLoading, setGoogleLoading] = useState(false);
+
   const [checkingSession, setCheckingSession] = useState(true);
 
 
@@ -51,6 +54,15 @@ export default function LoginPage() {
 
 
   const [theme, setTheme] = useState<ThemeMode>("dark");
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const authError = params.get("auth_error");
+    if (authError) {
+      setMessage(authError);
+      window.history.replaceState(null, "", window.location.pathname);
+    }
+  }, []);
 
 
 
@@ -252,6 +264,35 @@ export default function LoginPage() {
 
 
 
+  async function handleGoogleLogin() {
+    setMessage("");
+
+    if (!acceptedTerms) {
+      setMessage("Please accept the Terms of Service and Privacy Policy first.");
+      return;
+    }
+
+    setGoogleLoading(true);
+
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+
+      if (error) {
+        setMessage(error.message || "Unable to start Google sign-in.");
+        setGoogleLoading(false);
+      }
+      // On success Supabase redirects the browser to Google.
+    } catch {
+      setMessage("Unable to connect to Google sign-in. Please try again.");
+      setGoogleLoading(false);
+    }
+  }
+
   const isDark = theme === "dark";
 
 
@@ -376,75 +417,44 @@ export default function LoginPage() {
 
 
 
-        {/* Minimal theme switch — no external component required */}
-
-        <div className="absolute right-5 top-5 z-30 sm:right-8 sm:top-7 lg:right-12">
-
-          <div
-
-            className={`flex items-center rounded-xl border p-1 backdrop-blur-xl ${
-
+        {/* Home navigation and appearance — aligned with the signup page. */}
+        <div className="absolute right-5 top-5 z-30 flex items-center gap-2 sm:right-8 sm:top-7 lg:right-12">
+          <Link
+            href="/landing"
+            aria-label="Go to ContractX home"
+            title="Home"
+            className={`inline-flex h-10 w-10 items-center justify-center rounded-xl border backdrop-blur-xl transition ${
               isDark
-
-                ? "border-white/[0.08] bg-[#0A0C0F]/90"
-
-                : "border-black/[0.10] bg-white/85 shadow-[0_10px_30px_rgba(30,28,22,0.08)]"
-
+                ? "border-white/[0.08] bg-[#0A0C0F]/90 text-[#F4F1EA] hover:border-[#D8A84E]/50 hover:text-[#D8A84E]"
+                : "border-black/[0.10] bg-white/85 text-[#17191C] hover:border-[#A9823E]/50 hover:text-[#9A7336]"
             }`}
-
           >
-
-            <button
-
-              type="button"
-
-              onClick={() => switchTheme("dark")}
-
-              className={`rounded-lg px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
-
-                isDark
-
-                  ? "bg-[#D2B06F] text-[#050608]"
-
-                  : "text-black/45 hover:text-black/75"
-
-              }`}
-
-            >
-
-              Dark
-
-            </button>
-
-
-
-            <button
-
-              type="button"
-
-              onClick={() => switchTheme("light")}
-
-              className={`rounded-lg px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
-
-                !isDark
-
-                  ? "bg-[#A9823E] text-white"
-
-                  : "text-white/35 hover:text-white/70"
-
-              }`}
-
-            >
-
-              Light
-
-            </button>
-
+            <House size={17} aria-hidden="true" />
+          </Link>
+          <div className={`flex items-center rounded-xl border p-1 backdrop-blur-xl ${
+            isDark
+              ? "border-white/[0.08] bg-[#0A0C0F]/90"
+              : "border-black/[0.10] bg-white/85 shadow-[0_10px_30px_rgba(30,28,22,0.08)]"
+          }`} role="group" aria-label="Appearance">
+            {(["dark", "light"] as ThemeMode[]).map((item) => (
+              <button
+                key={item}
+                type="button"
+                onClick={() => switchTheme(item)}
+                aria-pressed={theme === item}
+                className={`rounded-lg px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.12em] transition ${
+                  theme === item
+                    ? "bg-[#D8A84E] text-[#050608]"
+                    : isDark
+                      ? "text-white/35 hover:text-white/70"
+                      : "text-black/45 hover:text-black/75"
+                }`}
+              >
+                {item}
+              </button>
+            ))}
           </div>
-
         </div>
-
-
 
         <div className="relative z-10 mx-auto grid min-h-[calc(100vh-220px)] w-full max-w-[1500px] items-center gap-16 px-6 py-16 lg:grid-cols-[1.1fr_0.9fr] lg:px-12">
 
@@ -949,6 +959,43 @@ export default function LoginPage() {
               </form>
 
 
+
+              <div className="mt-5 flex items-center gap-3" aria-hidden="true">
+                <div className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-black/10"}`} />
+                <span className={`text-[10px] font-semibold uppercase tracking-[0.14em] ${isDark ? "text-white/40" : "text-black/45"}`}>
+                  Or sign in with
+                </span>
+                <div className={`h-px flex-1 ${isDark ? "bg-white/10" : "bg-black/10"}`} />
+              </div>
+
+              <button
+                type="button"
+                onClick={handleGoogleLogin}
+                disabled={loading || googleLoading || !acceptedTerms}
+                className={`mt-4 flex w-full items-center justify-center gap-3 rounded-xl border px-5 py-3.5 text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                  isDark
+                    ? "border-white/[0.13] bg-white/[0.04] text-[#F4F1EA] hover:border-[#D8A84E]/50 hover:bg-white/[0.07]"
+                    : "border-black/[0.12] bg-white text-[#17191C] hover:border-[#A9823E]/50 hover:bg-[#FFF9EF]"
+                }`}
+              >
+                <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+                  <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+                  <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.17 7.09-10.32 7.09-17.65z" />
+                  <path fill="#FBBC05" d="M10.53 28.59a14.37 14.37 0 0 1 0-9.18l-7.98-6.19a23.91 23.91 0 0 0 0 21.56l7.98-6.19z" />
+                  <path fill="#34A853" d="M24 48c6.48 0 11.92-2.13 15.89-5.8l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+                </svg>
+                {googleLoading ? "Connecting to Google..." : "Continue with Google"}
+              </button>
+              <p className={`mt-2 text-center text-[10px] ${isDark ? "text-white/35" : "text-black/45"}`}>
+                Accept the terms above to enable Google sign-in.
+              </p>
+
+              <p className={`mt-4 text-center text-[12px] ${isDark ? "text-white/45" : "text-black/55"}`}>
+                New to ContractX?{" "}
+                <Link href="/signup" className="font-semibold text-[#D8A84E] hover:underline">
+                  Create an account
+                </Link>
+              </p>
 
               <div
 

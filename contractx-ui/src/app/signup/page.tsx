@@ -54,6 +54,7 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
   const [complete, setComplete] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -117,6 +118,31 @@ export default function SignupPage() {
       setMessage(error instanceof Error ? error.message : "Unable to register at this time.");
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleGoogleSignup() {
+    if (submitting || googleLoading) return;
+    setMessage("");
+    if (!acceptedTerms) {
+      setMessage("Please accept the Terms of Service and Privacy Policy before continuing with Google.");
+      return;
+    }
+
+    setGoogleLoading(true);
+    try {
+      // Plan selection is visual only; it must never grant paid entitlements.
+      // The callback establishes the session, then Login handles project-aware routing.
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+        },
+      });
+      if (error) throw error;
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Unable to continue with Google.");
+      setGoogleLoading(false);
     }
   }
 
@@ -289,6 +315,27 @@ export default function SignupPage() {
                 <button type="submit" disabled={submitting} className="group flex w-full items-center justify-center gap-2 rounded-xl bg-[#D8A84E] px-4 py-3 text-xs font-black uppercase tracking-[.12em] text-[#050608] transition hover:bg-[#E7BC69] disabled:cursor-wait disabled:opacity-60">
                   {submitting ? "Creating your account…" : "Create account"}
                   {!submitting && <ArrowRight size={15} className="transition-transform group-hover:translate-x-1" />}
+                </button>
+
+                <div className="flex items-center gap-3 py-0.5" aria-hidden="true">
+                  <span className="h-px flex-1 bg-[var(--signup-line)]" />
+                  <span className="cx-signup-muted text-[10px] font-semibold uppercase tracking-[.15em]">or</span>
+                  <span className="h-px flex-1 bg-[var(--signup-line)]" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleGoogleSignup}
+                  disabled={submitting || googleLoading}
+                  className="flex w-full items-center justify-center gap-3 rounded-xl border border-[var(--signup-line)] bg-[var(--signup-field)] px-4 py-3 text-xs font-bold transition hover:border-[#D8A84E]/60 hover:bg-[#D8A84E]/[.06] disabled:cursor-wait disabled:opacity-60"
+                >
+                  <svg aria-hidden="true" viewBox="0 0 24 24" className="h-[18px] w-[18px] shrink-0">
+                    <path fill="#4285F4" d="M21.6 12.23c0-.7-.06-1.37-.18-2.02H12v3.83h5.38a4.6 4.6 0 0 1-2 3.02v2.5h3.23c1.9-1.75 2.99-4.33 2.99-7.33Z" />
+                    <path fill="#34A853" d="M12 22c2.7 0 4.97-.9 6.62-2.44l-3.24-2.5c-.9.6-2.04.96-3.38.96-2.6 0-4.8-1.76-5.6-4.13H3.07v2.58A10 10 0 0 0 12 22Z" />
+                    <path fill="#FBBC05" d="M6.4 13.9a6 6 0 0 1 0-3.8V7.53H3.07a10 10 0 0 0 0 8.94l3.33-2.58Z" />
+                    <path fill="#EA4335" d="M12 5.98c1.47 0 2.8.5 3.84 1.51l2.88-2.87A9.58 9.58 0 0 0 12 2a10 10 0 0 0-8.93 5.53L6.4 10.1c.8-2.37 3-4.12 5.6-4.12Z" />
+                  </svg>
+                  {googleLoading ? "Connecting to Google…" : "Continue with Google"}
                 </button>
               </form>
             ) : (
