@@ -2028,7 +2028,7 @@ async def upload_schedule(
         quality_summary=quality,
     )
 
-    return {
+    return _json_safe({
         "status": "success",
         "schedule_id": schedule_id,
         "file_name": safe_name,
@@ -2083,7 +2083,7 @@ async def upload_schedule(
         "summary_gantt_max_rows": 60,
         "forensic_metadata": forensic_meta,
         "disclaimer": _forensic_disclaimer(),
-    }
+    })
 
 
 # =====================================================================
