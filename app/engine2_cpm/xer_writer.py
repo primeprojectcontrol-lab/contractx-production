@@ -24,6 +24,8 @@ a structurally compatible XER intended to be imported/rescheduled in P6 and
 validated against the Engine 2 impact result.
 """
 
+import base64
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Dict, Iterable, List, Optional, Tuple
@@ -44,7 +46,31 @@ class XERWriteResult:
 def _as_text(value: Any) -> str:
     if value is None:
         return ""
-    return str(value)
+    text = str(value)
+    # Pandas/numpy missing values must never become literal XER tokens.
+    return "" if text.strip().lower() in {"nan", "nat", "none", "<na>", "inf", "-inf"} else text
+
+
+def _new_p6_guid(used: set[str]) -> str:
+    """Unique 22-character P6-style GUID for a new TASK identity."""
+    while True:
+        value = base64.b64encode(uuid.uuid4().bytes).decode("ascii").rstrip("=")
+        if value not in used:
+            used.add(value)
+            return value
+
+
+def _status_to_p6(value: Any) -> str:
+    token = str(value or "TK_NotStart").strip().upper().replace("-", "_")
+    return {
+        "TK_NOTSTART": "TK_NotStart",
+        "TK_NOT_START": "TK_NotStart",
+        "NOT_STARTED": "TK_NotStart",
+        "TK_ACTIVE": "TK_Active",
+        "IN_PROGRESS": "TK_Active",
+        "TK_COMPLETE": "TK_Complete",
+        "COMPLETED": "TK_Complete",
+    }.get(token, str(value or "TK_NotStart"))
 
 
 def _dt(value: Any) -> Optional[datetime]:
@@ -312,6 +338,13 @@ class ImpactedXERWriter:
             new_task_records.append(rec)
 
         # Add synthetic fragnet activities.
+        # Template GUIDs are activity identities, not reusable metadata.
+        used_guids = {
+            str(r.get(field, "") or "").strip()
+            for r in raw_tasks
+            for field in ("guid", "tmpl_guid")
+            if str(r.get(field, "") or "").strip()
+        }
         added_count = 0
         for pk, item in impacted_by_pk.items():
             if pk in existing_ids:
@@ -326,6 +359,22 @@ class ImpactedXERWriter:
 
             rec = dict(template)
             rec["task_id"] = p6_id_map[pk]
+            # A copied GUID causes Primavera to identify two different TASKs
+            # as the same entity. Both identity fields must be unique.
+            for field in ("guid", "tmpl_guid"):
+                if field in task_fields:
+                    rec[field] = _new_p6_guid(used_guids)
+
+            # Do not copy forecast/progress/constraint state from an unrelated
+            # template activity. Only supplied impact fields are applied below.
+            for field in (
+                "rem_late_start_date", "rem_late_end_date", "expect_end_date",
+                "external_early_start_date", "external_late_end_date",
+                "suspend_date", "resume_date", "cstr_date", "cstr_type",
+                "cstr_date2", "cstr_type2", "rsrc_id",
+            ):
+                if field in rec:
+                    rec[field] = ""
 
             # The synthetic fragnet inherits project/WBS/calendar foreign keys
             # from the chosen source template activity. This keeps the new TASK
@@ -419,6 +468,10 @@ class ImpactedXERWriter:
                     rec[field] = ""
 
             apply_calculated_fields(rec, item)
+            if "status_code" in task_fields:
+                rec["status_code"] = _status_to_p6(item.get("status"))
+            # Eliminate non-finite tokens from newly synthesized records.
+            rec = {key: _as_text(value) for key, value in rec.items()}
 
             # For new impact activities, planned dates may be populated from the
             # calculated scenario so the imported XER is immediately inspectable.
@@ -471,6 +524,12 @@ class ImpactedXERWriter:
 
             max_pred_id += 1
             rec = dict(pred_template)
+            # TASKPRED rows are regenerated, not the original relationships.
+            # These audit/derived fields belong to the source relationship and
+            # must not be copied to a new predecessor/successor pair.
+            for stale_field in ("aref", "arls", "float_path"):
+                if stale_field in rec:
+                    rec[stale_field] = ""
             if "task_pred_id" in pred_fields:
                 rec["task_pred_id"] = str(max_pred_id)
             if "pred_task_id" in pred_fields:
@@ -580,6 +639,42 @@ class ImpactedXERWriter:
                     + sample
                 )
 
+        # P6 import integrity: TRSRCFIN rows are resource-financial history
+        # keyed by TASKRSRC.taskrsrc_id. Some source XERs contain historical
+        # TRSRCFIN rows whose resource assignments are absent from TASKRSRC.
+        # P6 may fail while joining those rows (blank taskrsrc_id in its virtual
+        # row). Preserve every valid financial record; omit only orphan rows.
+        resource_finance_replacement = None
+        if "TRSRCFIN" in sections:
+            fin_start, fin_end, fin_fields, fin_rows = sections["TRSRCFIN"]
+            if "taskrsrc_id" in fin_fields:
+                if "TASKRSRC" not in sections:
+                    raise XERWriterError(
+                        "TRSRCFIN references assignments but TASKRSRC is missing."
+                    )
+                _, _, assign_fields, assign_rows = sections["TASKRSRC"]
+                if "taskrsrc_id" not in assign_fields:
+                    raise XERWriterError(
+                        "TASKRSRC table has no taskrsrc_id column."
+                    )
+                valid_assignment_ids = {
+                    str(self._record(assign_fields, row).get("taskrsrc_id", "") or "").strip()
+                    for row in assign_rows
+                }
+                valid_assignment_ids.discard("")
+                retained_fin_rows = [
+                    row for row in fin_rows
+                    if str(self._record(fin_fields, row).get("taskrsrc_id", "") or "").strip()
+                    in valid_assignment_ids
+                ]
+                if len(retained_fin_rows) != len(fin_rows):
+                    fin_block = [
+                        "%T\tTRSRCFIN",
+                        "%F\t" + "\t".join(fin_fields),
+                        *("%R\t" + "\t".join(row) for row in retained_fin_rows),
+                    ]
+                    resource_finance_replacement = (fin_start, fin_end, fin_block)
+
         task_block = [
             "%T\tTASK",
             "%F\t" + "\t".join(task_fields),
@@ -597,6 +692,8 @@ class ImpactedXERWriter:
             (task_start, task_end, task_block),
             (pred_start, pred_end, pred_block),
         ]
+        if resource_finance_replacement is not None:
+            replacements.append(resource_finance_replacement)
         for start, end, block in sorted(replacements, key=lambda x: x[0], reverse=True):
             output_lines[start:end] = block
 
