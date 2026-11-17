@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, date as DateType, timedelta
 from typing import Any, Dict, List, Optional, Literal
 
 from pydantic import BaseModel, Field
@@ -121,7 +121,7 @@ class EvidenceSource(BaseModel):
     source_id: str
 
     title: Optional[str] = None
-    date: Optional[date] = None
+    date: Optional[DateType] = None
     reference: Optional[str] = None
     text: Optional[str] = None
 
