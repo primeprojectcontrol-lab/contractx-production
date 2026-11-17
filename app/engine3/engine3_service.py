@@ -365,7 +365,7 @@ def enrich_evidence_review(bundle: EvidenceBundle) -> EvidenceBundle:
             metadata.get("finding")
             or metadata.get("summary")
             or source.title
-            or source.text[:280]
+            or (source.text or "")[:280]
             or "Retrieved project evidence available for review."
         )
         return EvidenceFinding(
